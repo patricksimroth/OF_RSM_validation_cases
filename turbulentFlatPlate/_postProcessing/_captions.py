@@ -19,6 +19,7 @@ import statistics
 from pathlib import Path
 
 import _pp_common as pp
+import cv_balance as cvb
 import field_images as fi
 
 MODEL_NAMES = {"SSGLRROmega2019": "SSG/LRR-$\\omega$ (2019, simple diffusion)",
@@ -240,7 +241,76 @@ def _field(m, c):
     return f"{what}{where}, mesh overlaid, at the last iteration."
 
 
+CV_TERM = {"cf": "wall shear stress, i.e. of the mean skin-friction coefficient $C_f$ of the"
+                 " control volume",
+           "shear_top": "viscous and Reynolds shear stress acting on the top face"
+                        " ($c_{\\tau,\\mathrm{top}}$)",
+           "conv_top": "momentum deficit $\\rho\\,(U_\\infty - U_x)$ convected out through the top"
+                       " face ($c_{c,\\mathrm{top}}$)",
+           "conv_side": "momentum-deficit flux leaving through the downstream side minus the one"
+                        " entering through the upstream side ($c_{c,\\mathrm{side}}$)",
+           "pressure": "pressure and normal stresses on the two sides ($c_p$)"}
+
+
+def _cv(c, along=True):
+    step = (f" between stations {cvb.X_STEP:g} m apart" if along
+            else f" over {cvb.PLATE[0]:g} m $\\le x \\le$ {cvb.PLATE[1]:g} m")
+    return (f"Control volume: the cells below the prism-stack top $y = h${step}; on blockMesh"
+            " the cells below the same height, the cell row cut by h counted with its fraction"
+            " below h. Fluxes are sums of the solver's face fluxes of $x$-momentum relative to"
+            " $U_\\infty$, divided by $q_\\infty$ times the wall area of the control volume, so that"
+            " $C_f = c_{\\tau,\\mathrm{top}} + c_{c,\\mathrm{top}} + c_{c,\\mathrm{side}} + c_p$.")
+
+
+def _cv_reference(m, c):
+    return ("Integral $x$-momentum balance of the near-wall control volume on blockMesh"
+            f" ({_study(c)}): share of each flux in the local $C_f$ along the plate, one panel per"
+            " control-volume height $h^+$ (the prism-stack heights of the study). Shear stress on"
+            " the top face and its viscous and Reynolds parts, momentum deficit"
+            " $\\rho\\,(U_\\infty - U_x)$ convected out through the top face, growth of the deficit"
+            " flux between the two sides, and pressure and normal stresses on the sides."
+            f" {_cv(c)} {c['norm']}")
+
+
+def _cv_error(m, c):
+    return (f"Deviation from blockMesh of the {CV_TERM[m['term']]} in the integral $x$-momentum"
+            f" balance of the prism stack along the plate, in % of the blockMesh $C_f$"
+            f" ({_study(c)}). The deviations of the four fluxes add up to $\\varepsilon_{{C_f}}$."
+            f" {_cv(c)} {GRID.replace('; dashed: the same model on the prism-free blockMesh mesh', '')}"
+            f" {c['norm']}")
+
+
+def _cv_plate_mean(m, c):
+    return ("Deviation from blockMesh of the fluxes in the integral $x$-momentum balance of the"
+            f" prism stack, plate mean, in % of the blockMesh $C_f$ ({_study(c)}). Bars: shear"
+            " stress on the top face, momentum deficit convected through the top face, growth of"
+            " the deficit flux between the two sides, pressure and normal stresses on the sides,"
+            " stacked by sign; marker: their sum, the deviation $\\varepsilon_{C_f}$ of the mean"
+            f" skin-friction coefficient. {_cv(c, along=False)} Rows: prism-stack height $h^+$;"
+            " columns: mesh approach; abscissa: nominal wall core cell size"
+            f" $L_\\mathrm{{nom}}/\\bar\\delta$. {c['norm']}")
+
+
+def _cv_mass(m, c):
+    return ("Mass flux out of the prism-stack top along the plate as a mean wall-normal velocity"
+            " $v_\\mathrm{top}/U_\\infty = \\dot m_\\mathrm{top}/(\\rho_\\infty U_\\infty A)$"
+            f" ({_study(c)}), A the wall area of the control volume. {_cv(c)} {GRID} {c['norm']}")
+
+
+def _cv_numerical(m, c):
+    return ("Numerical flux of the convection scheme through the prism-stack top along the plate"
+            f" ({_study(c)}): $x$-momentum flux with the face velocity of the div(phi,U) scheme"
+            " minus the one with the linearly interpolated face velocity, in % of the blockMesh"
+            f" $C_f$. {_cv(c)} {GRID} {c['norm']}")
+
+
 FIGURES = (
+    (r"summary/cv_balance/balance(?:_\w+)?\.png", _cv_reference),
+    (r"summary/cv_balance/plate_mean(?:_\w+)?\.png", _cv_plate_mean),
+    (r"summary/cv_balance/error_(?P<term>cf|shear_top|conv_top|conv_side|pressure)(?:_\w+)?\.png",
+     _cv_error),
+    (r"summary/cv_balance/mass_top(?:_\w+)?\.png", _cv_mass),
+    (r"summary/cv_balance/numerical_top(?:_\w+)?\.png", _cv_numerical),
     (r"summary/along_plate/(?P<q>\w+)\.png", _along_plate),
     (r"summary/error_along_plate/(?P<q>\w+)\.png", _error_along_plate),
     (r"summary/error_vs_core/(?P<q>\w+)\.png", _error_vs_core),

@@ -1,0 +1,21 @@
+# Study: gradient-scheme test on gmshTri, nPrisms 40 (h+ 548), SpalartAllmarasSALSA,
+# base schemes.
+# gradSchemes: leastSquares for every gradient (overlay/system/fvSchemes).
+# Same meshes as the gmshTri nPrisms 40 combos of studies/core_refinement (4 core sizes);
+# no blockMesh baseline: compare with the 0.56 mm baseline of results/turbulentFlatPlate/SALSA.
+#
+# Run:   zih.sh submit gradSchemes_SALSA_leastSquares
+
+models = ["SpalartAllmarasSALSA"]
+approach = ["gmshTri"]
+
+[params]
+firstLayerThickness = 1.0e-06
+expansionRatio = 1.17
+nPrisms = 40
+
+[params.gmshTri]
+wallCellSize = [0.005, 0.0025, 0.00125, 0.000625]
+farCellSize = 0.06
+distMin = 0.01
+distMax = 0.4

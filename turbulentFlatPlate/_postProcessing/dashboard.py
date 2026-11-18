@@ -23,6 +23,8 @@ SUMMARY_SECTIONS = (
     ("cost", "Cost", "plate-RMS C_f error over the cell count"),
     ("wall_law", "Law of the wall", "u⁺ over y⁺ at x = 1 m"),
     ("prism_coverage", "Prism coverage", "stack top over the boundary-layer regions"),
+    ("cv_balance", "Control-volume balance",
+     "integral x-momentum balance of the prism stack: fluxes through its top and sides"),
 )
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".svg", ".webp"}

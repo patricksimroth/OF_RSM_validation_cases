@@ -129,11 +129,13 @@ def dx_ticks(runs):
     return sorted({round(r["dx_norm"], 6) for r in prism_runs(runs) if r["dx_norm"]})
 
 
-def load_runs(results):
+def load_runs(results, select=None):
     global SCALES, DELTA_MEAN
     manifest = json.loads((results / "study_manifest.json").read_text())
     runs = []
     for combo in manifest["combos"]:
+        if select is not None and not select(combo):
+            continue
         case = results / "_rundata" / combo["run_dir"]
         combo["_case_dir"] = str(case)
         if not (case / "log.rhoSimpleFoam").exists():
@@ -307,6 +309,21 @@ def prism_runs(runs):
     return [r for r in runs if r["approach"] in APPROACHES]
 
 
+def present_stacks(runs):
+    return sorted({r["nPrisms"] for r in prism_runs(runs)})
+
+
+def present_approaches(runs):
+    found = {r["approach"] for r in prism_runs(runs)}
+    return [a for a in APPROACHES if a in found]
+
+
+def stack_approach_handles(runs):
+    handles = [pp.line_handle(a, APPROACH_COLORS[a]) for a in present_approaches(runs)]
+    return handles + [pp.line_handle(hp(n), MUTED, "none", NPRISMS_MARKERS[n])
+                      for n in present_stacks(runs)]
+
+
 def core_sizes(runs):
     """Nominal wall core cell sizes L_nom/delta_mean of the prism runs, coarsest first."""
     return sorted({round(r["dx_norm"], 6) for r in prism_runs(runs) if r["dx_norm"]},
@@ -369,16 +386,16 @@ def cell_runs(runs, approach, n):
 
 def core_grid(runs, draw, ylabel, path, extras=(), panel=None, sharey=True):
     """Rows h+, columns approach, one line per core size (draw(ax, run) -> bool)."""
-    ns = sorted(NPRISMS_MARKERS)
-    fig, axes = pp.grid_figure(len(ns), N_APP, sharex=True, sharey=sharey)
+    ns, approaches = present_stacks(runs), present_approaches(runs)
+    fig, axes = pp.grid_figure(len(ns), len(approaches), sharex=True, sharey=sharey)
     for i, n in enumerate(ns):
-        for j, approach in enumerate(APPROACHES):
+        for j, approach in enumerate(approaches):
             ax = axes[i][j]
             for r in cell_runs(runs, approach, n):
                 draw(ax, r)
             if panel:
                 panel(ax, n)
-    pp.label_grid(axes, [hp(n) for n in ns], APPROACHES, ylabel, XI_LABEL)
+    pp.label_grid(axes, [hp(n) for n in ns], approaches, ylabel, XI_LABEL)
     rect = pp.legend_below(fig, core_handles(runs) + list(extras))
     fig.tight_layout(rect=rect, h_pad=0.6, w_pad=0.4)
     fig.savefig(path)
@@ -411,9 +428,8 @@ def fig_error_vs_core(runs, base, error, key, path):
     axes[1].set_ylabel(pp.error_label(key, "RMS"))
     for ax, tag in zip(axes, ("(a)", "(b)")):
         ax.set_title(tag, loc="left")
-    handles = [pp.line_handle(a, APPROACH_COLORS[a]) for a in APPROACHES]
-    handles += [pp.line_handle(hp(n), MUTED, "none", m) for n, m in NPRISMS_MARKERS.items()]
-    rect = pp.legend_below(fig, handles, ncol=N_APP)
+    handles = stack_approach_handles(runs)
+    rect = pp.legend_below(fig, handles, ncol=max(2, len(present_approaches(runs))))
     fig.tight_layout(rect=rect)
     fig.savefig(path)
     plt.close(fig)
@@ -454,8 +470,7 @@ def fig_cost(runs, base, path):
     pp.plain_log_axis(ax, "x")
     ax.set_xlabel("number of cells")
     ax.set_ylabel(pp.error_label("cf", "RMS"))
-    handles = [pp.line_handle(a, APPROACH_COLORS[a]) for a in APPROACHES]
-    handles += [pp.line_handle(hp(n), MUTED, "none", m) for n, m in NPRISMS_MARKERS.items()]
+    handles = stack_approach_handles(runs)
     handles.append(pp.line_handle(pp.ERROR_BASELINE, **{k: v for k, v in pp.BASELINE_STYLE.items()
                                                        if k in ("color", "linestyle")}))
     rect = pp.legend_below(fig, handles, ncol=4)
