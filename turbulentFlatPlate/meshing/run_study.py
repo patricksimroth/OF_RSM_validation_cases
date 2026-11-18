@@ -49,6 +49,7 @@ from meshing.common import (
     copy_tree,
     expand_params,
     load_config,
+    missing_submodules,
     report_provenance,
     write_manifest,
     write_provenance,
@@ -250,6 +251,12 @@ def acquire_lock(case_name):
 
 def _run_study(args, case_name, run_name, study_name, study_dir, approaches,
                by_name, plan):
+    missing = missing_submodules()
+    if missing:
+        print(f"[error] missing git submodules: {', '.join(missing)}")
+        print("        Run: git submodule update --init")
+        return 2
+
     run_case_dir = RUN_ROOT / run_name
     if run_case_dir.exists():
         shutil.rmtree(run_case_dir)

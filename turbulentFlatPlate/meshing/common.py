@@ -285,13 +285,37 @@ def _git(*args):
     return proc.stdout.rstrip("\n") if proc.returncode == 0 else None
 
 
+def missing_submodules():
+    """Submodule paths without a checkout, e.g. after a plain `git clone`."""
+    status = _git("submodule", "status") or ""
+    return [line.split()[1] for line in status.splitlines()
+            if line.startswith("-")]
+
+
+def submodule_provenance():
+    """Source, pinned and checked-out commit and state of every submodule."""
+    records = []
+    for line in (_git("submodule", "status") or "").splitlines():
+        commit, path = line[1:].split()[:2]
+        records.append({
+            "path": path,
+            "url": _git("config", "-f", ".gitmodules",
+                        f"submodule.{path}.url"),
+            "pinned": _git("rev-parse", f"HEAD:{path}"),
+            "commit": commit,
+            "dirty": bool(_git("-C", path, "status", "--porcelain")),
+        })
+    return records
+
+
 def git_provenance():
     """Commit and working-tree state, or None outside a git repo.
 
     `dirty` carries as much weight as the commit: with uncommitted changes the
     SHA names code that never produced these results, so the diff has to be
-    stored beside it (write_provenance).  `changed` is porcelain output, so
-    untracked files appear as `?? path` - those are NOT in the diff.
+    stored beside it (write_provenance).  The diff includes the changes inside
+    submodules.  `changed` is porcelain output, so untracked files appear as
+    `?? path` - those are NOT in the diff.
     """
     commit = _git("rev-parse", "HEAD")
     if commit is None:
@@ -303,7 +327,8 @@ def git_provenance():
         "branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
         "dirty": bool(changed),
         "changed": changed,
-        "diff": _git("diff", "HEAD") if changed else "",
+        "diff": _git("diff", "HEAD", "--submodule=diff") if changed else "",
+        "submodules": submodule_provenance(),
     }
 
 
@@ -337,6 +362,7 @@ def write_provenance(dest, case_name, study_name, study_dir, run_case_dir):
             "dirty": git["dirty"],
             "changed": git["changed"],
             "patch": patch_name,
+            "submodules": git["submodules"],
         },
         "libraries": library_fingerprints(),
     }

@@ -1,0 +1,6 @@
+[submodule "src/external/OF_SSGLRR_Omega2019"]
+	path = src/external/OF_SSGLRR_Omega2019
+	url = https://github.com/patricksimroth/OF_SSGLRR_Omega2019.git
+[submodule "src/external/OF_SA_SALSA"]
+	path = src/external/OF_SA_SALSA
+	url = https://github.com/JanisGeise/OF_SA_SALSA.git

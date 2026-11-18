@@ -1,4 +1,6 @@
 EXE_INC = \
+    -I../external/OF_SA_SALSA/turbulenceModels/Base/SpalartAllmarasSALSA \
+    -I../external/OF_SA_SALSA/turbulenceModels/RAS/SpalartAllmarasSALSA \
     -I$(LIB_SRC)/TurbulenceModels/compressible/lnInclude \
     -I$(LIB_SRC)/TurbulenceModels/turbulenceModels/lnInclude \
     -I$(LIB_SRC)/transportModels/compressible/lnInclude \

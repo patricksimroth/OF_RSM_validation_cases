@@ -31,6 +31,12 @@ if [ $# -gt 0 ]; then
     done
 fi
 
+# The turbulence-model sources are git submodules: stop before anything is wiped
+if git submodule status 2>/dev/null | grep -q '^-'; then
+    echo "[error] git submodules are missing. Run: git submodule update --init"
+    exit 1
+fi
+
 # 1. Clean up the 'run' directory at the start
 # Refuse if a config-driven study owns run/ right now: wiping it would delete
 # that study's case directories mid-solve and it would then fail on missing
